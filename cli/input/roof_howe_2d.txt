@@ -1,0 +1,30 @@
+2D HOWE ROOF TRUSS - 16 M SPAN, 4 M RISE (N, mm)
+# Gable roof truss: 16 m span, 4 m rise (statically determinate).
+# Chords A=4500 mm^2, verticals/diagonals A=2500.
+# Purlin loads -20 kN at top-chord nodes; ceiling loads -8 kN below.
+# Planar model: the out-of-plane Z DOF is fixed at every node.
+# units: N, mm (E = 205000 N/mm^2 steel); Y is up
+13,8
+# id, fixX, fixY, fixZ, x, y, z, Fx, Fy, Fz
+1,1,1,1,0,0,0,0,0,0
+2,0,0,1,4000,0,0,0,-8000,0
+3,0,0,1,8000,0,0,0,-8000,0
+4,0,0,1,12000,0,0,0,-8000,0
+5,0,1,1,16000,0,0,0,0,0
+6,0,0,1,4000,2000,0,0,-20000,0
+7,0,0,1,8000,4000,0,0,-20000,0
+8,0,0,1,12000,2000,0,0,-20000,0
+# id, nodeA, nodeB, E, A
+1,1,2,205000,4500
+2,2,3,205000,4500
+3,3,4,205000,4500
+4,4,5,205000,4500
+5,1,6,205000,4500
+6,6,7,205000,4500
+7,7,8,205000,4500
+8,8,5,205000,4500
+9,2,6,205000,2500
+10,3,7,205000,2500
+11,4,8,205000,2500
+12,6,3,205000,2500
+13,8,3,205000,2500

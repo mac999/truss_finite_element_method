@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>3D PRATT THROUGH-TRUSS BRIDGE - 6 PANELS, 24 M SPAN (N, mm) &middot; Truss FEM Viewer</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --panel-2: #1c2330;
+    --border: #2b3446;
+    --text: #e6edf3;
+    --muted: #9aa7b8;
+    --accent: #58a6ff;
+    --tension: #ff5c6c;
+    --compression: #4c8dff;
+    --zero: #7d8899;
+    --load: #ffb454;
+    --support: #37d67a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+  }
+  #app { display: flex; height: 100vh; width: 100vw; }
+  #stage { position: relative; flex: 1 1 auto; min-width: 0; }
+  canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+  canvas:active { cursor: grabbing; }
+
+  #sidebar {
+    width: 340px;
+    flex: 0 0 340px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .brand {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .brand h1 { font-size: 15px; margin: 0 0 4px; letter-spacing: .2px; }
+  .brand .sub { font-size: 12px; color: var(--muted); }
+
+  .section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .section h2 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--muted); margin: 0 0 12px; font-weight: 600;
+  }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px;
+  }
+  .stat .k { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .stat .v { font-size: 16px; font-weight: 600; margin-top: 2px; }
+
+  .toggle { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; }
+  .toggle label { font-size: 13px; }
+  .switch { position: relative; width: 38px; height: 22px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; inset: 0; cursor: pointer; background: #303a4d;
+    border-radius: 22px; transition: .15s;
+  }
+  .slider:before {
+    content: ""; position: absolute; height: 16px; width: 16px; left: 3px; top: 3px;
+    background: #fff; border-radius: 50%; transition: .15s;
+  }
+  input:checked + .slider { background: var(--accent); }
+  input:checked + .slider:before { transform: translateX(16px); }
+
+  .range-row { margin-top: 6px; }
+  .range-row .label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+
+  .legend-item { display: flex; align-items: center; gap: 10px; font-size: 12px; padding: 4px 0; color: var(--muted); }
+  .swatch { width: 22px; height: 4px; border-radius: 2px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  th, td { text-align: right; padding: 5px 6px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: .4px; }
+  td:first-child, th:first-child { text-align: left; }
+  .tag { padding: 1px 7px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+  .tag.tension { background: rgba(255,92,108,.15); color: var(--tension); }
+  .tag.compression { background: rgba(76,141,255,.15); color: var(--compression); }
+  .tag.zero-force { background: rgba(125,136,153,.15); color: var(--zero); }
+
+  .hint { font-size: 11px; color: var(--muted); line-height: 1.6; }
+  kbd {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 6px; font-size: 10px; font-family: ui-monospace, monospace;
+  }
+
+  #hud {
+    position: absolute; top: 14px; left: 14px;
+    background: rgba(22,27,34,.82); backdrop-filter: blur(6px);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 14px; font-size: 12px; color: var(--muted);
+    pointer-events: none; max-width: 260px; line-height: 1.5;
+  }
+  #hud b { color: var(--text); }
+  #viewbtns { position: absolute; top: 14px; right: 14px; display: flex; gap: 6px; }
+  .vbtn {
+    background: rgba(22,27,34,.82); backdrop-filter: blur(6px);
+    border: 1px solid var(--border); color: var(--muted);
+    border-radius: 8px; padding: 6px 11px; font-size: 12px; cursor: pointer;
+  }
+  .vbtn:hover { color: var(--text); border-color: var(--accent); }
+  .footer { padding: 14px 20px; font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="c"></canvas>
+    <div id="hud">Drag to orbit &middot; Scroll to zoom &middot; Hover a member for details</div>
+    <div id="viewbtns">
+      <button class="vbtn" data-view="iso">Iso</button>
+      <button class="vbtn" data-view="xy">XY</button>
+      <button class="vbtn" data-view="xz">XZ</button>
+      <button class="vbtn" data-view="yz">YZ</button>
+      <button class="vbtn" id="fitbtn">Fit</button>
+    </div>
+  </div>
+  <aside id="sidebar">
+    <div class="brand">
+      <h1 id="modelTitle">Truss FEM</h1>
+      <div class="sub" id="modelType">&mdash;</div>
+    </div>
+
+    <div class="section">
+      <h2>Summary</h2>
+      <div class="stat-grid">
+        <div class="stat"><div class="k">Nodes</div><div class="v" id="sNodes">0</div></div>
+        <div class="stat"><div class="k">Members</div><div class="v" id="sElems">0</div></div>
+        <div class="stat"><div class="k">Max |disp|</div><div class="v" id="sDisp">0</div></div>
+        <div class="stat"><div class="k">Max |force|</div><div class="v" id="sForce">0</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Display</h2>
+      <div class="toggle"><label>Undeformed shape</label>
+        <span class="switch"><input type="checkbox" id="tUndef" checked><span class="slider"></span></span></div>
+      <div class="toggle"><label>Deformed shape</label>
+        <span class="switch"><input type="checkbox" id="tDef" checked><span class="slider"></span></span></div>
+      <div class="toggle"><label>Loads</label>
+        <span class="switch"><input type="checkbox" id="tLoad" checked><span class="slider"></span></span></div>
+      <div class="toggle"><label>Supports</label>
+        <span class="switch"><input type="checkbox" id="tSup" checked><span class="slider"></span></span></div>
+      <div class="toggle"><label>Node labels</label>
+        <span class="switch"><input type="checkbox" id="tLbl"><span class="slider"></span></span></div>
+      <div class="range-row">
+        <div class="label"><span>Deformation scale</span><span id="scaleVal">auto</span></div>
+        <input type="range" id="scale" min="0" max="100" value="50">
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Force Legend</h2>
+      <div class="legend-item"><span class="swatch" style="background:var(--tension)"></span> Tension (+)</div>
+      <div class="legend-item"><span class="swatch" style="background:var(--compression)"></span> Compression (&minus;)</div>
+      <div class="legend-item"><span class="swatch" style="background:var(--zero)"></span> Zero-force</div>
+      <div class="legend-item"><span class="dot" style="background:var(--support)"></span> Support</div>
+      <div class="legend-item"><span class="dot" style="background:var(--load)"></span> Applied load</div>
+    </div>
+
+    <div class="section">
+      <h2>Members</h2>
+      <table id="elemTable">
+        <thead><tr><th>El</th><th>A&ndash;B</th><th>Axial</th><th>State</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>Nodal Displacements</h2>
+      <table id="nodeTable">
+        <thead><tr><th>Nd</th><th>Ux</th><th>Uy</th><th>Uz</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="footer">
+      Generated by <b>truss-fem</b> &middot; Direct stiffness method<br>
+      Sign convention: <span style="color:var(--tension)">+ tension</span> /
+      <span style="color:var(--compression)">&minus; compression</span>
+    </div>
+  </aside>
+</div>
+
+<script>
+"use strict";
+const DATA = {
+  "title": "3D PRATT THROUGH-TRUSS BRIDGE - 6 PANELS, 24 M SPAN (N, mm)",
+  "planar": false,
+  "maxAbsDisplacement": 14.938617292171227,
+  "nodes": [
+    { "id": 1, "coord": [0, 0, 0], "fixed": [true, true, true], "load": [0, 0, 0], "displacement": [0, 0, 0], "reaction": [0.0000000011859810911118984, 200000.00000000058, 0.0000000002219167072325945] },
+    { "id": 2, "coord": [4000, 0, 0], "fixed": [false, false, false], "load": [0, -80000, 0], "displacement": [0.6504065040650396, -7.716603745889307, -0.6545030302840179], "reaction": [0, 0, 0] },
+    { "id": 3, "coord": [8000, 0, 0], "fixed": [false, false, false], "load": [0, -80000, 0], "displacement": [1.3008130081300793, -12.771872023944558, -0.000000000000008192301827436626], "reaction": [0, 0, 0] },
+    { "id": 4, "coord": [12000, 0, 0], "fixed": [false, false, false], "load": [0, -80000, 0], "displacement": [2.3414634146341453, -14.938617292171225, -1.1893147502903698], "reaction": [0, 0, 0] },
+    { "id": 5, "coord": [16000, 0, 0], "fixed": [false, false, false], "load": [0, -80000, 0], "displacement": [3.3821138211382125, -12.771872023944562, -0.0000000000000065790917073078385], "reaction": [0, 0, 0] },
+    { "id": 6, "coord": [20000, 0, 0], "fixed": [false, false, false], "load": [0, -80000, 0], "displacement": [4.032520325203253, -7.716603745889307, -0.6545030302840161], "reaction": [0, 0, 0] },
+    { "id": 7, "coord": [24000, 0, 0], "fixed": [false, true, true], "load": [0, 0, 0], "displacement": [4.682926829268292, 0, 0], "reaction": [0, 200000.00000000023, 0.00000000010550138540565968] },
+    { "id": 8, "coord": [4000, 4000, 0], "fixed": [false, false, false], "load": [0, 0, 0], "displacement": [4.55284552845529, -7.312286625768655, -0.6545030302840392], "reaction": [0, 0, 0] },
+    { "id": 9, "coord": [8000, 4000, 0], "fixed": [false, false, false], "load": [0, 0, 0], "displacement": [3.512195121951222, -13.032034625570576, -1.9326364692218578], "reaction": [0, 0, 0] },
+    { "id": 10, "coord": [12000, 4000, 0], "fixed": [false, false, false], "load": [0, 0, 0], "displacement": [2.3414634146341444, -14.938617292171227, -0.5946573751451981], "reaction": [0, 0, 0] },
+    { "id": 11, "coord": [16000, 4000, 0], "fixed": [false, false, false], "load": [0, 0, 0], "displacement": [1.1707317073170669, -13.032034625570581, -1.9326364692218574], "reaction": [0, 0, 0] },
+    { "id": 12, "coord": [20000, 4000, 0], "fixed": [false, false, false], "load": [0, 0, 0], "displacement": [0.13008130081299918, -7.312286625768654, -0.6545030302840402], "reaction": [0, 0, 0] },
+    { "id": 13, "coord": [0, 0, 3500], "fixed": [true, true, true], "load": [0, 0, 0], "displacement": [0, 0, 0], "reaction": [0.00000000034924596548080444, 200000.00000000023, 0] },
+    { "id": 14, "coord": [4000, 0, 3500], "fixed": [false, false, false], "load": [0, -80000, 0], "displacement": [0.6504065040650402, -7.716603745889291, -0.7433217189314798], "reaction": [0, 0, 0] },
+    { "id": 15, "coord": [8000, 0, 3500], "fixed": [false, false, false], "load": [0, -80000, 0], "displacement": [1.3008130081300795, -12.771872023944526, -0.000000000000008111748559639824], "reaction": [0, 0, 0] },
+    { "id": 16, "coord": [12000, 0, 3500], "fixed": [false, false, false], "load": [0, -80000, 0], "displacement": [2.341463414634144, -14.938617292171182, -1.1893147502903698], "reaction": [0, 0, 0] },
+    { "id": 17, "coord": [16000, 0, 3500], "fixed": [false, false, false], "load": [0, -80000, 0], "displacement": [3.382113821138208, -12.771872023944528, -0.000000000000006453764202745693], "reaction": [0, 0, 0] },
+    { "id": 18, "coord": [20000, 0, 3500], "fixed": [false, false, false], "load": [0, -80000, 0], "displacement": [4.03252032520325, -7.7166037458892855, -0.7433217189314794], "reaction": [0, 0, 0] },
+    { "id": 19, "coord": [24000, 0, 3500], "fixed": [false, true, true], "load": [0, 0, 0], "displacement": [4.682926829268287, 0, 0], "reaction": [0, 199999.99999999936, 0] },
+    { "id": 20, "coord": [4000, 4000, 3500], "fixed": [false, false, false], "load": [0, 0, 0], "displacement": [4.552845528455279, -7.312286625768639, -0.743321718931502], "reaction": [0, 0, 0] },
+    { "id": 21, "coord": [8000, 4000, 3500], "fixed": [false, false, false], "load": [0, 0, 0], "displacement": [3.512195121951214, -13.03203462557054, -1.9326364692218578], "reaction": [0, 0, 0] },
+    { "id": 22, "coord": [12000, 4000, 3500], "fixed": [false, false, false], "load": [0, 0, 0], "displacement": [2.341463414634141, -14.938617292171182, -0.5946573751451981], "reaction": [0, 0, 0] },
+    { "id": 23, "coord": [16000, 4000, 3500], "fixed": [false, false, false], "load": [0, 0, 0], "displacement": [1.170731707317068, -13.03203462557055, -1.9326364692218572], "reaction": [0, 0, 0] },
+    { "id": 24, "coord": [20000, 4000, 3500], "fixed": [false, false, false], "load": [0, 0, 0], "displacement": [0.13008130081300423, -7.312286625768632, -0.7433217189315027], "reaction": [0, 0, 0] }
+  ],
+  "elements": [
+    { "id": 1, "nodes": [1, 2], "length": 4000, "axialForce": 199999.9999999997, "stress": 33.333333333333286, "strain": 0.00016260162601625992, "elongation": 0.6504065040650396, "state": "tension" },
+    { "id": 2, "nodes": [2, 3], "length": 4000, "axialForce": 199999.9999999997, "stress": 33.333333333333286, "strain": 0.00016260162601625992, "elongation": 0.6504065040650396, "state": "tension" },
+    { "id": 3, "nodes": [3, 4], "length": 4000, "axialForce": 320000.0000000003, "stress": 53.333333333333385, "strain": 0.0002601626016260165, "elongation": 1.040650406504066, "state": "tension" },
+    { "id": 4, "nodes": [4, 5], "length": 4000, "axialForce": 320000.00000000064, "stress": 53.33333333333344, "strain": 0.0002601626016260168, "elongation": 1.0406504065040671, "state": "tension" },
+    { "id": 5, "nodes": [5, 6], "length": 4000, "axialForce": 199999.99999999988, "stress": 33.333333333333314, "strain": 0.00016260162601626005, "elongation": 0.6504065040650402, "state": "tension" },
+    { "id": 6, "nodes": [6, 7], "length": 4000, "axialForce": 199999.9999999997, "stress": 33.333333333333286, "strain": 0.00016260162601625995, "elongation": 0.6504065040650397, "state": "tension" },
+    { "id": 7, "nodes": [8, 9], "length": 4000, "axialForce": -320000.00000000076, "stress": -53.333333333333464, "strain": -0.0002601626016260169, "elongation": -1.0406504065040676, "state": "compression" },
+    { "id": 8, "nodes": [9, 10], "length": 4000, "axialForce": -360000.0000000014, "stress": -60.000000000000234, "strain": -0.0002926829268292694, "elongation": -1.1707317073170778, "state": "compression" },
+    { "id": 9, "nodes": [10, 11], "length": 4000, "axialForce": -360000.00000000134, "stress": -60.00000000000022, "strain": -0.00029268292682926937, "elongation": -1.1707317073170775, "state": "compression" },
+    { "id": 10, "nodes": [11, 12], "length": 4000, "axialForce": -320000.00000000076, "stress": -53.333333333333464, "strain": -0.0002601626016260169, "elongation": -1.0406504065040676, "state": "compression" },
+    { "id": 11, "nodes": [2, 8], "length": 4000, "axialForce": 62163.75721855023, "stress": 20.72125240618341, "strain": 0.00010107928003016297, "elongation": 0.4043171201206519, "state": "tension" },
+    { "id": 12, "nodes": [3, 9], "length": 4000, "axialForce": -40000.00000000022, "stress": -13.333333333333407, "strain": -0.00006504065040650443, "elongation": -0.2601626016260177, "state": "compression" },
+    { "id": 13, "nodes": [4, 10], "length": 4000, "axialForce": -0.0000000002731148640577885, "stress": -0.00000000000009103828801926284, "strain": -0.0000000000000000004440892098500626, "elongation": -0.0000000000000017763568394002505, "state": "zero-force" },
+    { "id": 14, "nodes": [5, 11], "length": 4000, "axialForce": -40000.00000000049, "stress": -13.333333333333496, "strain": -0.00006504065040650486, "elongation": -0.26016260162601945, "state": "compression" },
+    { "id": 15, "nodes": [6, 12], "length": 4000, "axialForce": 62163.75721855037, "stress": 20.721252406183456, "strain": 0.0001010792800301632, "elongation": 0.4043171201206528, "state": "tension" },
+    { "id": 16, "nodes": [1, 8], "length": 5656.85424949238, "axialForce": -282842.7124746199, "stress": -70.71067811865498, "strain": -0.00034493013716417067, "elongation": -1.9512195121951286, "state": "compression" },
+    { "id": 17, "nodes": [7, 12], "length": 5656.85424949238, "axialForce": -282842.7124746195, "stress": -70.71067811865487, "strain": -0.00034493013716417007, "elongation": -1.951219512195125, "state": "compression" },
+    { "id": 18, "nodes": [8, 3], "length": 5656.85424949238, "axialForce": 169705.62748477198, "stress": 56.568542494923996, "strain": 0.00027594410973133657, "elongation": 1.560975609756103, "state": "tension" },
+    { "id": 19, "nodes": [9, 4], "length": 5656.85424949238, "axialForce": 56568.54249492458, "stress": 18.856180831641527, "strain": 0.00009198136991044647, "elongation": 0.5203252032520397, "state": "tension" },
+    { "id": 20, "nodes": [12, 5], "length": 5656.85424949238, "axialForce": 169705.62748477212, "stress": 56.56854249492404, "strain": 0.0002759441097313368, "elongation": 1.5609756097561043, "state": "tension" },
+    { "id": 21, "nodes": [11, 4], "length": 5656.85424949238, "axialForce": 56568.54249492405, "stress": 18.85618083164135, "strain": 0.0000919813699104456, "elongation": 0.5203252032520348, "state": "tension" },
+    { "id": 22, "nodes": [13, 14], "length": 4000, "axialForce": 199999.99999999988, "stress": 33.333333333333314, "strain": 0.00016260162601626005, "elongation": 0.6504065040650402, "state": "tension" },
+    { "id": 23, "nodes": [14, 15], "length": 4000, "axialForce": 199999.9999999996, "stress": 33.333333333333265, "strain": 0.00016260162601625984, "elongation": 0.6504065040650393, "state": "tension" },
+    { "id": 24, "nodes": [15, 16], "length": 4000, "axialForce": 319999.9999999998, "stress": 53.33333333333331, "strain": 0.00026016260162601613, "elongation": 1.0406504065040645, "state": "tension" },
+    { "id": 25, "nodes": [16, 17], "length": 4000, "axialForce": 319999.9999999997, "stress": 53.333333333333286, "strain": 0.000260162601626016, "elongation": 1.040650406504064, "state": "tension" },
+    { "id": 26, "nodes": [17, 18], "length": 4000, "axialForce": 200000.0000000004, "stress": 33.3333333333334, "strain": 0.0001626016260162605, "elongation": 0.650406504065042, "state": "tension" },
+    { "id": 27, "nodes": [18, 19], "length": 4000, "axialForce": 199999.9999999989, "stress": 33.33333333333315, "strain": 0.00016260162601625927, "elongation": 0.6504065040650371, "state": "tension" },
+    { "id": 28, "nodes": [20, 21], "length": 4000, "axialForce": -320000, "stress": -53.33333333333333, "strain": -0.00026016260162601624, "elongation": -1.040650406504065, "state": "compression" },
+    { "id": 29, "nodes": [21, 22], "length": 4000, "axialForce": -360000.00000000006, "stress": -60.00000000000001, "strain": -0.00029268292682926834, "elongation": -1.1707317073170733, "state": "compression" },
+    { "id": 30, "nodes": [22, 23], "length": 4000, "axialForce": -359999.99999999994, "stress": -59.999999999999986, "strain": -0.00029268292682926823, "elongation": -1.1707317073170729, "state": "compression" },
+    { "id": 31, "nodes": [23, 24], "length": 4000, "axialForce": -319999.99999999965, "stress": -53.33333333333327, "strain": -0.00026016260162601597, "elongation": -1.0406504065040638, "state": "compression" },
+    { "id": 32, "nodes": [14, 20], "length": 4000, "axialForce": 62163.75721855023, "stress": 20.72125240618341, "strain": 0.00010107928003016297, "elongation": 0.4043171201206519, "state": "tension" },
+    { "id": 33, "nodes": [15, 21], "length": 4000, "axialForce": -39999.99999999967, "stress": -13.333333333333224, "strain": -0.00006504065040650353, "elongation": -0.2601626016260141, "state": "compression" },
+    { "id": 34, "nodes": [16, 22], "length": 4000, "axialForce": 0, "stress": 0, "strain": 0, "elongation": 0, "state": "zero-force" },
+    { "id": 35, "nodes": [17, 23], "length": 4000, "axialForce": -40000.000000000764, "stress": -13.333333333333588, "strain": -0.0000650406504065053, "elongation": -0.26016260162602123, "state": "compression" },
+    { "id": 36, "nodes": [18, 24], "length": 4000, "axialForce": 62163.7572185505, "stress": 20.7212524061835, "strain": 0.00010107928003016342, "elongation": 0.4043171201206537, "state": "tension" },
+    { "id": 37, "nodes": [13, 20], "length": 5656.85424949238, "axialForce": -282842.7124746194, "stress": -70.71067811865484, "strain": -0.00034493013716416996, "elongation": -1.9512195121951246, "state": "compression" },
+    { "id": 38, "nodes": [19, 24], "length": 5656.85424949238, "axialForce": -282842.7124746182, "stress": -70.71067811865456, "strain": -0.00034493013716416855, "elongation": -1.9512195121951166, "state": "compression" },
+    { "id": 39, "nodes": [20, 15], "length": 5656.85424949238, "axialForce": 169705.62748477157, "stress": 56.56854249492386, "strain": 0.0002759441097313359, "elongation": 1.5609756097560994, "state": "tension" },
+    { "id": 40, "nodes": [21, 16], "length": 5656.85424949238, "axialForce": 56568.54249492453, "stress": 18.85618083164151, "strain": 0.00009198136991044639, "elongation": 0.5203252032520392, "state": "tension" },
+    { "id": 41, "nodes": [24, 17], "length": 5656.85424949238, "axialForce": 169705.62748477198, "stress": 56.568542494923996, "strain": 0.00027594410973133657, "elongation": 1.560975609756103, "state": "tension" },
+    { "id": 42, "nodes": [23, 16], "length": 5656.85424949238, "axialForce": 56568.54249492342, "stress": 18.85618083164114, "strain": 0.00009198136991044459, "elongation": 0.520325203252029, "state": "tension" },
+    { "id": 43, "nodes": [1, 13], "length": 3500, "axialForce": 0, "stress": 0, "strain": 0, "elongation": 0, "state": "zero-force" },
+    { "id": 44, "nodes": [2, 14], "length": 3500, "axialForce": -15606.712433768305, "stress": -5.202237477922768, "strain": -0.000025376768184989112, "elongation": -0.0888186886474619, "state": "compression" },
+    { "id": 45, "nodes": [3, 15], "length": 3500, "axialForce": 0.000000000014154359912866726, "stress": 0.000000000000004718119970955575, "strain": 0.000000000000000000023015219370515, "elongation": 0.00000000000000008055326779680251, "state": "zero-force" },
+    { "id": 46, "nodes": [4, 16], "length": 3500, "axialForce": 0, "stress": 0, "strain": 0, "elongation": 0, "state": "zero-force" },
+    { "id": 47, "nodes": [5, 17], "length": 3500, "axialForce": 0.000000000022021832944491292, "stress": 0.000000000000007340610981497098, "strain": 0.000000000000000000035807858446327306, "elongation": 0.00000000000000012532750456214558, "state": "zero-force" },
+    { "id": 48, "nodes": [6, 18], "length": 3500, "axialForce": -15606.71243376854, "stress": -5.202237477922846, "strain": -0.000025376768184989495, "elongation": -0.08881868864746323, "state": "compression" },
+    { "id": 49, "nodes": [7, 19], "length": 3500, "axialForce": 0, "stress": 0, "strain": 0, "elongation": 0, "state": "zero-force" },
+    { "id": 50, "nodes": [8, 20], "length": 3500, "axialForce": -15606.71243376846, "stress": -5.20223747792282, "strain": -0.000025376768184989366, "elongation": -0.08881868864746278, "state": "compression" },
+    { "id": 51, "nodes": [9, 21], "length": 3500, "axialForce": 0, "stress": 0, "strain": 0, "elongation": 0, "state": "zero-force" },
+    { "id": 52, "nodes": [10, 22], "length": 3500, "axialForce": 0, "stress": 0, "strain": 0, "elongation": 0, "state": "zero-force" },
+    { "id": 53, "nodes": [11, 23], "length": 3500, "axialForce": 0.00000000003901640915111265, "stress": 0.000000000000013005469717037549, "strain": 0.00000000000000000006344131569286609, "elongation": 0.0000000000000002220446049250313, "state": "zero-force" },
+    { "id": 54, "nodes": [12, 24], "length": 3500, "axialForce": -15606.7124337684, "stress": -5.2022374779228, "strain": -0.00002537676818498927, "elongation": -0.08881868864746245, "state": "compression" },
+    { "id": 55, "nodes": [1, 14], "length": 5315.072906367324, "axialForce": -0.0000000003372138683614456, "stress": -0.00000000000013488554734457825, "strain": -0.00000000000000000065797827972965, "elongation": -0.000000000000003497202527569243, "state": "zero-force" },
+    { "id": 56, "nodes": [14, 3], "length": 5315.072906367324, "axialForce": 0.00000000010705202170204623, "stress": 0.00000000000004282080868081849, "strain": 0.00000000000000000020888199356496825, "elongation": 0.0000000000000011102230246251565, "state": "zero-force" },
+    { "id": 57, "nodes": [3, 16], "length": 5315.072906367324, "axialForce": -0.00000000011775722387225086, "stress": -0.00000000000004710288954890034, "strain": -0.0000000000000000002297701929214651, "elongation": -0.0000000000000012212453270876722, "state": "zero-force" },
+    { "id": 58, "nodes": [16, 5], "length": 5315.072906367324, "axialForce": 0.000000000053526010851023117, "stress": 0.000000000000021410404340409245, "strain": 0.00000000000000000010444099678248413, "elongation": 0.0000000000000005551115123125783, "state": "zero-force" },
+    { "id": 59, "nodes": [5, 18], "length": 5315.072906367324, "axialForce": -0.00000000008564161736163699, "stress": -0.000000000000034256646944654795, "strain": -0.0000000000000000001671055948519746, "elongation": -0.0000000000000008881784197001252, "state": "zero-force" },
+    { "id": 60, "nodes": [18, 7], "length": 5315.072906367324, "axialForce": -0.00000000014987283038286472, "stress": -0.00000000000005994913215314589, "strain": -0.00000000000000000029243479099095557, "elongation": -0.0000000000000015543122344752192, "state": "zero-force" },
+    { "id": 61, "nodes": [20, 9], "length": 5315.072906367324, "axialForce": 0.0000000003211560651061387, "stress": 0.00000000000012846242604245548, "strain": 0.0000000000000000006266459806949047, "elongation": 0.0000000000000033306690738754696, "state": "zero-force" },
+    { "id": 62, "nodes": [9, 22], "length": 5315.072906367324, "axialForce": -0.000000000310450862935934, "stress": -0.00000000000012418034517437362, "strain": -0.0000000000000000006057577813384079, "elongation": -0.000000000000003219646771412954, "state": "zero-force" },
+    { "id": 63, "nodes": [22, 11], "length": 5315.072906367324, "axialForce": 0.0000000001926936390636832, "stress": 0.00000000000007707745562547328, "strain": 0.00000000000000000037598758841694283, "elongation": 0.0000000000000019984014443252818, "state": "zero-force" },
+    { "id": 64, "nodes": [11, 24], "length": 5315.072906367324, "axialForce": -0.00000000017128323472327398, "stress": -0.00000000000006851329388930959, "strain": -0.0000000000000000003342111897039492, "elongation": -0.0000000000000017763568394002505, "state": "zero-force" },
+    { "id": 65, "nodes": [8, 14], "length": 5315.072906367324, "axialForce": 23700.232689768396, "stress": 9.480093075907359, "strain": 0.00004624435646784077, "elongation": 0.24579212613461304, "state": "tension" },
+    { "id": 66, "nodes": [20, 2], "length": 5315.072906367324, "axialForce": 23700.232689767952, "stress": 9.480093075907181, "strain": 0.000046244356467839906, "elongation": 0.24579212613460844, "state": "tension" },
+    { "id": 67, "nodes": [12, 18], "length": 5315.072906367324, "axialForce": 23700.232689768167, "stress": 9.480093075907266, "strain": 0.000046244356467840326, "elongation": 0.24579212613461066, "state": "tension" },
+    { "id": 68, "nodes": [24, 6], "length": 5315.072906367324, "axialForce": 23700.232689768316, "stress": 9.480093075907327, "strain": 0.00004624435646784062, "elongation": 0.2457921261346122, "state": "tension" }
+  ]
+}
+;
+
+/* ---------- tiny vector helpers ---------- */
+const rotY = (p, a) => {
+  const c = Math.cos(a), s = Math.sin(a);
+  return [c * p[0] + s * p[2], p[1], -s * p[0] + c * p[2]];
+};
+const rotX = (p, a) => {
+  const c = Math.cos(a), s = Math.sin(a);
+  return [p[0], c * p[1] - s * p[2], s * p[1] + c * p[2]];
+};
+
+/* ---------- state ---------- */
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+let yaw = -0.6, pitch = -0.5;      // orbit angles
+let zoom = 1, panX = 0, panY = 0;  // view transform
+let baseScale = 1, cx = 0, cy = 0; // auto-fit
+let defScale = 1;                  // deformation magnification
+let hover = null;
+
+/* pre-compute model bounds and a sensible default deformation scale */
+const nodes = DATA.nodes;
+const elems = DATA.elements;
+const byId = {};
+nodes.forEach(n => byId[n.id] = n);
+
+let maxForce = 0;
+elems.forEach(e => { maxForce = Math.max(maxForce, Math.abs(e.axialForce)); });
+
+const bb = { min: [1e30, 1e30, 1e30], max: [-1e30, -1e30, -1e30] };
+nodes.forEach(n => {
+  for (let k = 0; k < 3; k++) {
+    bb.min[k] = Math.min(bb.min[k], n.coord[k]);
+    bb.max[k] = Math.max(bb.max[k], n.coord[k]);
+  }
+});
+const modelSize = Math.max(
+  bb.max[0] - bb.min[0], bb.max[1] - bb.min[1], bb.max[2] - bb.min[2], 1e-9);
+const center = [
+  (bb.min[0] + bb.max[0]) / 2, (bb.min[1] + bb.max[1]) / 2, (bb.min[2] + bb.max[2]) / 2];
+
+// Auto deformation scale: make the largest displacement ~8% of the model size.
+const autoDefScale = DATA.maxAbsDisplacement > 1e-30
+  ? (0.08 * modelSize) / DATA.maxAbsDisplacement : 0;
+
+/* ---------- projection ---------- */
+function project(p) {
+  let q = [p[0] - center[0], p[1] - center[1], p[2] - center[2]];
+  q = rotY(q, yaw);
+  q = rotX(q, pitch);
+  // Orthographic; y is up on screen.
+  return [cx + panX + q[0] * baseScale * zoom, cy + panY - q[1] * baseScale * zoom];
+}
+function deformedCoord(n) {
+  return [
+    n.coord[0] + n.displacement[0] * defScale,
+    n.coord[1] + n.displacement[1] * defScale,
+    n.coord[2] + n.displacement[2] * defScale,
+  ];
+}
+
+/* ---------- fit ---------- */
+function fit() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  cx = w / 2; cy = h / 2; panX = 0; panY = 0; zoom = 1;
+  // project the 8 bbox corners at current orientation to size the view
+  let minx = 1e30, miny = 1e30, maxx = -1e30, maxy = -1e30;
+  baseScale = 1;
+  for (let i = 0; i < 8; i++) {
+    const p = [
+      i & 1 ? bb.max[0] : bb.min[0],
+      i & 2 ? bb.max[1] : bb.min[1],
+      i & 4 ? bb.max[2] : bb.min[2],
+    ];
+    let q = [p[0] - center[0], p[1] - center[1], p[2] - center[2]];
+    q = rotX(rotY(q, yaw), pitch);
+    minx = Math.min(minx, q[0]); maxx = Math.max(maxx, q[0]);
+    miny = Math.min(miny, -q[1]); maxy = Math.max(maxy, -q[1]);
+  }
+  const spanX = Math.max(maxx - minx, 1e-9), spanY = Math.max(maxy - miny, 1e-9);
+  baseScale = 0.78 * Math.min(w / spanX, h / spanY);
+  draw();
+}
+
+/* ---------- colors ---------- */
+function forceColor(f) {
+  if (Math.abs(f) < 1e-9 || maxForce < 1e-30) return getVar("--zero");
+  return f > 0 ? getVar("--tension") : getVar("--compression");
+}
+function getVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+function lineWidth(f) {
+  const t = maxForce < 1e-30 ? 0 : Math.abs(f) / maxForce;
+  return 1.4 + t * 5.0;
+}
+
+/* ---------- draw ---------- */
+const opt = () => ({
+  undef: document.getElementById("tUndef").checked,
+  def: document.getElementById("tDef").checked,
+  load: document.getElementById("tLoad").checked,
+  sup: document.getElementById("tSup").checked,
+  lbl: document.getElementById("tLbl").checked,
+});
+
+function draw() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const o = opt();
+
+  // undeformed wireframe
+  if (o.undef) {
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(154,167,184,.35)";
+    ctx.setLineDash([4, 4]);
+    elems.forEach(e => {
+      const a = project(byId[e.nodes[0]].coord);
+      const b = project(byId[e.nodes[1]].coord);
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+  }
+
+  // deformed members, colored by axial force
+  if (o.def) {
+    elems.forEach(e => {
+      const a = project(deformedCoord(byId[e.nodes[0]]));
+      const b = project(deformedCoord(byId[e.nodes[1]]));
+      ctx.lineWidth = lineWidth(e.axialForce) * (hover === e ? 1.7 : 1);
+      ctx.strokeStyle = hover === e ? "#fff" : forceColor(e.axialForce);
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    });
+  }
+
+  // loads (arrows) on the deformed geometry
+  if (o.load) {
+    ctx.strokeStyle = getVar("--load");
+    ctx.fillStyle = getVar("--load");
+    ctx.lineWidth = 2;
+    const arrowLen = 0.18 * modelSize;
+    nodes.forEach(n => {
+      const mag = Math.hypot(n.load[0], n.load[1], n.load[2]);
+      if (mag < 1e-12) return;
+      const base = o.def ? deformedCoord(n) : n.coord;
+      const dir = [n.load[0] / mag, n.load[1] / mag, n.load[2] / mag];
+      const tip = [base[0] + dir[0] * arrowLen, base[1] + dir[1] * arrowLen, base[2] + dir[2] * arrowLen];
+      const p0 = project(base), p1 = project(tip);
+      drawArrow(p0, p1);
+    });
+  }
+
+  // nodes
+  nodes.forEach(n => {
+    const p = project(o.def ? deformedCoord(n) : n.coord);
+    const isSup = n.fixed.some(x => x);
+    ctx.beginPath();
+    ctx.arc(p[0], p[1], isSup ? 5 : 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = (o.sup && isSup) ? getVar("--support") : "#c9d4e3";
+    ctx.fill();
+    if (o.sup && isSup) {
+      ctx.strokeStyle = getVar("--support");
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(p[0] - 8, p[1] - 8, 16, 16);
+    }
+    if (o.lbl) {
+      ctx.fillStyle = "#e6edf3";
+      ctx.font = "11px ui-sans-serif, system-ui";
+      ctx.fillText(String(n.id), p[0] + 8, p[1] - 8);
+    }
+  });
+}
+
+function drawArrow(p0, p1) {
+  ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
+  const ang = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]);
+  const s = 7;
+  ctx.beginPath();
+  ctx.moveTo(p1[0], p1[1]);
+  ctx.lineTo(p1[0] - s * Math.cos(ang - 0.4), p1[1] - s * Math.sin(ang - 0.4));
+  ctx.lineTo(p1[0] - s * Math.cos(ang + 0.4), p1[1] - s * Math.sin(ang + 0.4));
+  ctx.closePath(); ctx.fill();
+}
+
+/* ---------- interaction ---------- */
+let dragging = false, lastX = 0, lastY = 0, panning = false;
+canvas.addEventListener("mousedown", e => {
+  dragging = true; panning = e.shiftKey || e.button === 1;
+  lastX = e.clientX; lastY = e.clientY;
+});
+window.addEventListener("mouseup", () => dragging = false);
+window.addEventListener("mousemove", e => {
+  if (!dragging) { hoverTest(e); return; }
+  const dx = e.clientX - lastX, dy = e.clientY - lastY;
+  lastX = e.clientX; lastY = e.clientY;
+  if (panning) { panX += dx; panY += dy; }
+  else { yaw += dx * 0.01; pitch += dy * 0.01; }
+  draw();
+});
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  zoom *= e.deltaY < 0 ? 1.1 : 1 / 1.1;
+  zoom = Math.max(0.05, Math.min(zoom, 50));
+  draw();
+}, { passive: false });
+
+function hoverTest(e) {
+  const r = canvas.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  let best = null, bestD = 8;
+  elems.forEach(el => {
+    const a = project(deformedCoord(byId[el.nodes[0]]));
+    const b = project(deformedCoord(byId[el.nodes[1]]));
+    const d = distToSeg(mx, my, a, b);
+    if (d < bestD) { bestD = d; best = el; }
+  });
+  if (best !== hover) {
+    hover = best;
+    updateHud();
+    draw();
+  }
+}
+function distToSeg(px, py, a, b) {
+  const vx = b[0] - a[0], vy = b[1] - a[1];
+  const wx = px - a[0], wy = py - a[1];
+  const c1 = vx * wx + vy * wy, c2 = vx * vx + vy * vy;
+  let t = c2 > 0 ? c1 / c2 : 0; t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (a[0] + t * vx), py - (a[1] + t * vy));
+}
+function updateHud() {
+  const hud = document.getElementById("hud");
+  if (!hover) {
+    hud.innerHTML = "Drag to orbit &middot; Scroll to zoom &middot; Hover a member for details";
+    return;
+  }
+  const e = hover;
+  hud.innerHTML =
+    `<b>Member ${e.id}</b> (${e.nodes[0]}&ndash;${e.nodes[1]})<br>` +
+    `Axial: <b>${fmt(e.axialForce)}</b> (${e.state})<br>` +
+    `Stress: ${fmt(e.stress)} &middot; Length: ${fmt(e.length)}`;
+}
+
+/* ---------- ui wiring ---------- */
+function fmt(v) {
+  if (!isFinite(v)) return "n/a";
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 1e-3 || a >= 1e5)) return v.toExponential(3);
+  return v.toFixed(3);
+}
+["tUndef","tDef","tLoad","tSup","tLbl"].forEach(id =>
+  document.getElementById(id).addEventListener("change", draw));
+
+const scaleEl = document.getElementById("scale");
+function applyScale() {
+  const v = +scaleEl.value;               // 0..100, 50 = auto
+  const factor = Math.pow(10, (v - 50) / 25); // 0.01x .. 100x around auto
+  defScale = autoDefScale * factor;
+  document.getElementById("scaleVal").textContent =
+    v === 50 ? "auto" : (factor >= 1 ? factor.toFixed(1) : factor.toFixed(2)) + "x";
+  draw();
+}
+scaleEl.addEventListener("input", applyScale);
+
+document.querySelectorAll(".vbtn[data-view]").forEach(btn =>
+  btn.addEventListener("click", () => {
+    const v = btn.dataset.view;
+    if (v === "iso") { yaw = -0.6; pitch = -0.5; }
+    if (v === "xy") { yaw = 0; pitch = 0; }
+    if (v === "xz") { yaw = 0; pitch = -Math.PI / 2 + 0.001; }
+    if (v === "yz") { yaw = -Math.PI / 2; pitch = 0; }
+    fit();
+  }));
+document.getElementById("fitbtn").addEventListener("click", fit);
+window.addEventListener("resize", fit);
+
+/* ---------- populate panels ---------- */
+document.getElementById("modelTitle").textContent = DATA.title || "Truss FEM";
+document.getElementById("modelType").textContent =
+  (DATA.planar ? "2D planar" : "3D space") + " truss";
+document.getElementById("sNodes").textContent = nodes.length;
+document.getElementById("sElems").textContent = elems.length;
+document.getElementById("sDisp").textContent = fmt(DATA.maxAbsDisplacement);
+document.getElementById("sForce").textContent = fmt(maxForce);
+
+const etb = document.querySelector("#elemTable tbody");
+elems.forEach(e => {
+  const tr = document.createElement("tr");
+  tr.innerHTML =
+    `<td>${e.id}</td><td>${e.nodes[0]}&ndash;${e.nodes[1]}</td>` +
+    `<td>${fmt(e.axialForce)}</td><td><span class="tag ${e.state}">${e.state}</span></td>`;
+  tr.addEventListener("mouseenter", () => { hover = e; updateHud(); draw(); });
+  tr.addEventListener("mouseleave", () => { hover = null; updateHud(); draw(); });
+  etb.appendChild(tr);
+});
+
+const ntb = document.querySelector("#nodeTable tbody");
+nodes.forEach(n => {
+  const tr = document.createElement("tr");
+  tr.innerHTML =
+    `<td>${n.id}</td><td>${fmt(n.displacement[0])}</td>` +
+    `<td>${fmt(n.displacement[1])}</td><td>${fmt(n.displacement[2])}</td>`;
+  ntb.appendChild(tr);
+});
+
+/* ---------- go ---------- */
+applyScale();
+fit();
+</script>
+</body>
+</html>
